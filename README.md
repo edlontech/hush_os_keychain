@@ -13,7 +13,7 @@ Requires Elixir `~> 1.19` and Hush `~> 1.3`. Add this dependency to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:hush_os_keychain, "~> 0.1"}
+    {:hush_os_keychain, "~> 0.1.0"} # x-release-please-version
   ]
 end
 ```

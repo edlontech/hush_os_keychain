@@ -2,15 +2,36 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_KEY }}
+
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
   build:
     name: NIF ${{ matrix.nif }} - ${{ matrix.job.target }}
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -24,16 +45,8 @@ jobs:
           - { target: x86_64-pc-windows-msvc, os: windows-latest }
     steps:
       - uses: actions/checkout@v7
-
-      - name: Extract project version
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          if ! grep -qF "version: \"$version\"" mix.exs; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match the version in mix.exs"
-            exit 1
-          fi
-          echo "PROJECT_VERSION=$version" >> "$GITHUB_ENV"
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -44,13 +57,40 @@ jobs:
         uses: philss/rustler-precompiled-action@v1.1.5
         with:
           project-name: hush_os_keychain
-          project-version: ${{ env.PROJECT_VERSION }}
+          project-version: ${{ needs.release-please.outputs.version }}
           target: ${{ matrix.job.target }}
           nif-version: ${{ matrix.nif }}
           use-cross: ${{ matrix.job.use-cross }}
           project-dir: native/hush_os_keychain
 
       - name: Upload to the GitHub Release
-        uses: softprops/action-gh-release@v3
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ needs.release-please.outputs.tag_name }}" "${{ steps.build-crate.outputs.file-path }}" --clobber
+
+  publish:
+    needs: [release-please, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
         with:
-          files: ${{ steps.build-crate.outputs.file-path }}
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+
+      # :dev compiles the NIF from source, which writes the metadata the download task needs.
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: mix deps.get
+
+      - name: Generate the checksum file from the release artifacts
+        run: mix rustler_precompiled.download HushOsKeychain.Native --all --print
+
+      - name: Publish to Hex
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes

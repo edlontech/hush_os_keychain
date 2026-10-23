@@ -22,6 +22,7 @@ defmodule HushOsKeychain.MixProject do
           "checksum-*.exs",
           "mix.exs",
           "README.md",
+          "CHANGELOG.md",
           "LICENSE"
         ]
       ],

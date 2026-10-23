@@ -1,30 +1,41 @@
 # Releasing
 
+Releases are automated with [release-please](https://github.com/googleapis/release-please)
+in `.github/workflows/release.yml`. Commits on `main` must follow
+[Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
+`feat!:` ...), because they decide the next version and the changelog.
+
+## Flow
+
+1. Every push to `main` runs release-please. It opens or updates a release PR
+   that bumps `version` in `mix.exs`, the install snippet in `README.md`,
+   `.release-please-manifest.json` and `CHANGELOG.md`.
+2. Merging the release PR makes release-please tag `vX.Y.Z` and create the
+   GitHub Release. The same workflow then:
+   - builds the NIF for every precompiled target and uploads the tarballs to
+     that release;
+   - runs `mix rustler_precompiled.download HushOsKeychain.Native --all --print`
+     to write `checksum-Elixir.HushOsKeychain.Native.exs` from those tarballs;
+   - runs `mix hex.publish --yes`.
+
+The checksum file is generated in CI for each release and is not committed.
+
+The first release is `0.1.0` (`initial-version` in `release-please-config.json`).
+Before `1.0.0`, breaking changes bump the minor version.
+
 Only final versions (`X.Y.Z`, no `-rc`/`-dev` suffix) are published.
 `rustler_precompiled` forces a source build for pre-release versions, so a
 pre-release would require every user to have Rust installed.
 
-1. Bump `version` in `mix.exs` to `X.Y.Z` and commit.
-2. Tag the commit `vX.Y.Z` and push the tag:
+## Repository setup
 
-   ```sh
-   jj tag set vX.Y.Z -r <change>
-   jj git push -b main
-   git push origin vX.Y.Z
-   ```
+- `vars.APP_ID` and `secrets.APP_KEY`: a GitHub App with contents, issues and
+  pull-requests write access. Its token lets the release PR trigger CI.
+- `secrets.HEX_API_KEY`: a Hex API key with publish rights for
+  `hush_os_keychain`.
 
-3. Wait for the `Release` workflow to finish. It builds the NIF for every
-   target and attaches the tarballs to the `vX.Y.Z` GitHub Release. The
-   workflow fails if the tag does not match the version in `mix.exs`.
-4. Generate the checksum file from the published artifacts:
+## Recovering a failed release
 
-   ```sh
-   mix rustler_precompiled.download HushOsKeychain.Native --all --print
-   ```
-
-5. Commit `checksum-Elixir.HushOsKeychain.Native.exs`.
-6. Publish to Hex:
-
-   ```sh
-   mix hex.publish
-   ```
+If the build or publish jobs fail after the GitHub Release exists, re-run the
+failed jobs from the Actions UI. Uploads use `--clobber`, so re-running a build
+job replaces its tarball.
