@@ -1,0 +1,27 @@
+[package]
+name = "hush_os_keychain"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "hush_os_keychain"
+crate-type = ["cdylib"]
+
+[dependencies]
+keyring-core = "1"
+rustler = "0.38"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1", features = ["keychain"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = { version = "1", default-features = false }
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+zbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
+
+[dev-dependencies]
+keyring-core = { version = "1", features = ["sample"] }
