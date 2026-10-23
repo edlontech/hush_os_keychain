@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    env:
+      HUSH_OS_KEYCHAIN_BUILD: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: mix deps.get
+
+      - run: mix test
+
+      - name: Integration tests (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          security create-keychain -p ci ci.keychain
+          security default-keychain -s ci.keychain
+          security unlock-keychain -p ci ci.keychain
+          security set-keychain-settings ci.keychain
+          mix test --only integration
+
+      - name: Integration tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnome-keyring dbus-x11
+          dbus-run-session -- sh -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets && mix test --only integration'
+
+      - name: Integration tests (Windows)
+        if: runner.os == 'Windows'
+        run: mix test --only integration
+
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    env:
+      HUSH_OS_KEYCHAIN_BUILD: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - run: mix deps.get
+
+      - run: mix check
+
+      - run: cargo clippy -- -D warnings
+        working-directory: native/hush_os_keychain
+
+      - run: cargo test
+        working-directory: native/hush_os_keychain

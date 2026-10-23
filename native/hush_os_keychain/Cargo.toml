@@ -10,6 +10,11 @@ publish = false
 name = "hush_os_keychain"
 crate-type = ["cdylib"]
 
+[features]
+nif_version_2_15 = ["rustler/nif_version_2_15"]
+nif_version_2_16 = ["rustler/nif_version_2_16"]
+nif_version_2_17 = ["rustler/nif_version_2_17"]
+
 [dependencies]
 keyring-core = "1"
 rustler = "0.38"
