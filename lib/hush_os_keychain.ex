@@ -1,10 +1,14 @@
 defmodule HushOsKeychain do
   @moduledoc """
-  A Hush configuration provider backed by operating system keychains on macOS,
-  Linux, and Windows.
+  Stores, fetches, and deletes generic passwords in macOS Keychain, Linux Secret
+  Service, and Windows Credential Manager.
 
-  Items are generic passwords whose service is the key. The account comes from
-  the `:account` option, then `config :hush, Hush.Provider.OsKeychain, account: ...`.
+  The service is the Hush key. The account comes from the `:account` option, then
+  `config :hush, Hush.Provider.OsKeychain, account: ...`. Writes default to the
+  account `"hush"`; reads and deletes without an account search by service alone.
+
+  See the [README](readme.html) for installation, Hush setup, OS tools, lookup
+  rules, and platform and security limitations.
   """
 
   alias HushOsKeychain.Store
