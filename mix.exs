@@ -1,12 +1,18 @@
-defmodule HushMacosKeychain.MixProject do
+defmodule HushOsKeychain.MixProject do
   use Mix.Project
+
+  @source_url "https://github.com/ygorcastor/hush_os_keychain"
 
   def project do
     [
-      app: :hush_macos_keychain,
+      app: :hush_os_keychain,
       version: "0.1.0",
-      elixir: "~> 1.20",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
+      source_url: @source_url,
+      description: "A Hush configuration provider backed by operating system keychains.",
+      package: [licenses: ["Apache-2.0"], links: %{"GitHub" => @source_url}],
+      docs: [main: "readme", extras: ["README.md"]],
       deps: deps()
     ]
   end
