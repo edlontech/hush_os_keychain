@@ -11,7 +11,20 @@ defmodule HushOsKeychain.MixProject do
       start_permanent: Mix.env() == :prod,
       source_url: @source_url,
       description: "A Hush configuration provider backed by operating system keychains.",
-      package: [licenses: ["Apache-2.0"], links: %{"GitHub" => @source_url}],
+      package: [
+        licenses: ["Apache-2.0"],
+        links: %{"GitHub" => @source_url},
+        files: [
+          "lib",
+          "native/hush_os_keychain/.cargo",
+          "native/hush_os_keychain/src",
+          "native/hush_os_keychain/Cargo*",
+          "checksum-*.exs",
+          "mix.exs",
+          "README.md",
+          "LICENSE"
+        ]
+      ],
       docs: [main: "readme", extras: ["README.md"]],
       deps: deps()
     ]
@@ -35,7 +48,9 @@ defmodule HushOsKeychain.MixProject do
       {:hush, "~> 1.3"},
       {:mimic, "~> 2.0", only: :test},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
-      {:recode, "~> 0.8", only: [:dev], runtime: false}
+      {:recode, "~> 0.8", only: [:dev], runtime: false},
+      {:rustler, "~> 0.38.0", optional: true},
+      {:rustler_precompiled, "~> 0.10"}
     ]
   end
 end
