@@ -1,7 +1,7 @@
 defmodule HushOsKeychain.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/ygorcastor/hush_os_keychain"
+  @source_url "https://github.com/edlontech/hush_os_keychain"
 
   def project do
     [
