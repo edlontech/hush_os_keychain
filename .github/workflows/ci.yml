@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  HUSH_OS_KEYCHAIN_BUILD: "1"
+  ELIXIR_VERSION: "1.19"
+  OTP_VERSION: "28"
+
 jobs:
   test:
     name: Test (${{ matrix.os }})
@@ -14,17 +19,34 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-    env:
-      HUSH_OS_KEYCHAIN_BUILD: "1"
     steps:
       - uses: actions/checkout@v7
 
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.19"
-          otp-version: "28"
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry and NIF artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/hush_os_keychain
+
+      # priv/native holds the NIF built from source, so it is cached next to _build.
+      # The Rust sources are part of the key because a restored _build can skip the
+      # recompile that would otherwise rebuild the NIF.
+      - name: Cache Mix deps and build
+        uses: actions/cache@v6
+        with:
+          path: |
+            deps
+            _build
+            priv/native
+          key: ${{ runner.os }}-${{ runner.arch }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock', 'native/hush_os_keychain/Cargo.toml', 'native/hush_os_keychain/Cargo.lock', 'native/hush_os_keychain/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
 
       - run: mix deps.get
 
@@ -53,19 +75,43 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    env:
-      HUSH_OS_KEYCHAIN_BUILD: "1"
     steps:
       - uses: actions/checkout@v7
 
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.19"
-          otp-version: "28"
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
+      - name: Cache Cargo registry and NIF artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/hush_os_keychain
+
+      - name: Cache Mix deps and build
+        uses: actions/cache@v6
+        with:
+          path: |
+            deps
+            _build
+            priv/native
+          key: ${{ runner.os }}-${{ runner.arch }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock', 'native/hush_os_keychain/Cargo.toml', 'native/hush_os_keychain/Cargo.lock', 'native/hush_os_keychain/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+      # The core PLT is the slowest part of dialyzer. Its filename encodes the
+      # OTP and Elixir versions, so a stale entry is ignored rather than reused.
+      - name: Cache Dialyzer core PLT
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.mix/dialyxir_*.plt
+            ~/.mix/dialyxir_*.plt.hash
+          key: ${{ runner.os }}-${{ runner.arch }}-dialyzer-core-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}
 
       - run: mix deps.get
 
