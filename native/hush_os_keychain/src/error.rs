@@ -11,7 +11,7 @@ mod atoms {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum NifError {
     NotFound,
     Unavailable(String),

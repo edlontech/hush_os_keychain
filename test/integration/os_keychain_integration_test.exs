@@ -10,8 +10,6 @@ defmodule HushOsKeychain.IntegrationTest do
     accounts = Map.get(context, :accounts, ["hush"])
     previous_config = Application.fetch_env(:hush, OsKeychain)
 
-    IO.puts("Integration service: #{service}")
-
     on_exit(fn ->
       case previous_config do
         {:ok, config} -> Application.put_env(:hush, OsKeychain, config)

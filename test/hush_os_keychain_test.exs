@@ -95,11 +95,27 @@ defmodule HushOsKeychainTest do
       assert {:error, {:native_not_loaded, "native library failed to load: " <> _}} =
                HushOsKeychain.delete("svc")
     end
+  end
 
-    test "other Erlang errors are not swallowed" do
-      stub(Store, :fetch, fn _, _ -> :erlang.error(:badarg) end)
+  describe "unexpected native exceptions" do
+    test "become :platform errors that never carry the secret" do
+      secret = "s3cret-value"
 
-      assert_raise ArgumentError, fn -> HushOsKeychain.fetch("svc") end
+      exceptions = [
+        %ErlangError{original: :nif_panicked},
+        %ArgumentError{message: "badarg: " <> secret},
+        %UndefinedFunctionError{module: SomeOther, function: :put, arity: 3}
+      ]
+
+      for exception <- exceptions do
+        stub(Store, :put, fn _, _, _ -> raise exception end)
+
+        assert {:error, {:platform, message} = error} =
+                 HushOsKeychain.put("svc", secret, [])
+
+        assert message == "native call failed: " <> inspect(exception.__struct__)
+        refute HushOsKeychain.format_error(error, "svc") =~ secret
+      end
     end
   end
 

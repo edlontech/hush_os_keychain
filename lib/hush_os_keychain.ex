@@ -145,13 +145,11 @@ defmodule HushOsKeychain do
   defp call(fun) do
     fun.()
   rescue
-    error in UndefinedFunctionError ->
-      not_loaded(error)
-
-    error in ErlangError ->
+    error ->
       case error do
+        %UndefinedFunctionError{module: HushOsKeychain.Native} -> not_loaded(error)
         %ErlangError{original: :nif_not_loaded} -> not_loaded(error)
-        _ -> reraise(error, __STACKTRACE__)
+        _ -> {:error, {:platform, "native call failed: " <> inspect(error.__struct__)}}
       end
   end
 
